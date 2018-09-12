@@ -1,0 +1,9 @@
+{
+    "input_size": 512,
+    "layers": [
+        {
+            "type": "dense",
+            "units": 512
+        }
+    ]
+}

@@ -1,0 +1,302 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Lachaise Assignment
+% LaTeX Template
+% Version 1.0 (26/6/2018)
+%
+% This template originates from:
+% http://www.LaTeXTemplates.com
+%
+% Authors:
+% Marion Lachaise & François Févotte
+% Vel (vel@LaTeXTemplates.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass{article}
+
+\input{structure.tex} % Include the file specifying the document structure and custom commands
+
+\usepackage{pgf}
+\usepackage{booktabs}
+\usepackage{graphicx}
+%----------------------------------------------------------------------------------------
+%	ASSIGNMENT INFORMATION
+%----------------------------------------------------------------------------------------
+
+\title{Assignment 1: Neural Classification\\ with Bag of Words} % Title of the assignment
+
+\author{Filip Stefaniuk\\ \texttt{filipste@student.matnat.uio.no}} % Author name and email address
+
+% \date{University of Inaba --- \today} % University, school and/or department name(s) and a date
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\maketitle % Print the title
+
+% %----------------------------------------------------------------------------------------
+% %	INTRODUCTION
+% %----------------------------------------------------------------------------------------
+
+\section{Introduction}
+In this assignment I had to build a neural network calssifier, that based on text of article
+represended as bag of words, predicts its source. I was working with \textit{"The Signal Media One-Million News Articles Dataset"}.
+To create and train models, I used Keras library with tensorflow backend. Most of the examples,
+I trained on my local machine since it wasn't computationaly heavy task. However, the code also runs
+on Abel. One of the main goals of this assignment was to test different hyperparameters. To make it easier,
+my program parameters (including model architecture) are parameterizable by configuration json files. \\
+In this report I present only partial statistics for each experiment, but all required metrics 
+for each of the experiments are available in the repository.
+Code that creates plots is in jupyter notebooks. 
+The code, notebooks, results of experiments,
+dataset, instructions how to run program and latex source code for this report are available in
+github repository\footnote{https://github.uio.no/filipste/INF5820-Assignment1}.
+
+% %----------------------------------------------------------------------------------------
+% %	DATA ANALYSIS
+% %----------------------------------------------------------------------------------------
+
+\section{Data analysis} % Numbered section
+
+The dataset was provided as a gzipped tab-separated text file,
+with one line corresponding to one news article. Texts were already lemmatized and POS-tagged,
+and the stop words were removed. I have implemented module that is
+responsible for all data preprocessing. It splits dataset, infers a common dictionary, extracts
+BOW and label for each document. Size of BOW vector is parameterizable and it uses n
+most common words. Labels are one hot encoded. 
+
+\subsection{Splitting the dataset}
+Dataset needed to be split into three parts: training, developement and test. To do that, I
+used popular scikit-learn function \textit{train\_test\_split()}, that shuffles 
+dataset based on privided seed for random generator and then splits it into two parts. I use it two times:
+to split dataset into training and test part and to take part from training part for developement. Both percentages 
+(developement and test) as well as the seed are parameterizable with default values accordingly 0.1, 0.1 and 123.
+So by default dataset is split roughly in the proportion (80/10/10). Further experiments were prformed
+with default values for those parameters.\\
+
+
+It is important to check distibution of labels since it should be similar in all parts of the dataset. Morover it
+is useful to check if the classes are balanced. It turns out that while most of them have similar number of examples,
+one (\textit{myinforms}) has significantly more examples than the others. To deal with that problem, during training I used weighted loss function.
+
+\begin{figure}[h]
+	\centering
+	\scalebox{0.3}{\input{../figures/label_distribution.pgf}}
+	\caption{Distribution of labels in all three parts of the dataset using seed 123 for random number generator.}
+\end{figure}
+
+\newpage
+
+\subsection{Word distribution}
+I run tokenizer on training part of the dataset and infered a common dictionary for all documents.
+Then I checked the word distributions. I have tested two cases: words
+with and without POS tag concatenated to them. Here are the numbers of occurances
+for the 10 most common words in the dataset. It is interesting to look at the differences, for example
+word report is very common but when with pos tag is split into two tokens: report as noun and verb and does
+not appear in the top 10 words. 
+
+\begin{figure}[h]
+	\centering
+
+	\begin{minipage}{0.3\textwidth}
+        \centering
+		\input{./table_word_count.tex}
+		\caption{No POS tags.}
+	\end{minipage}
+	\begin{minipage}{0.3\textwidth}
+        \centering
+		\input{./table_word_count_POS.tex}
+		\caption{With POS tags.}
+	\end{minipage}
+	\begin{minipage}{0.35\textwidth}
+        \centering
+			\scalebox{0.25}{\includegraphics{../figures/word_occ.png}}
+			\caption{Word occurances.}
+    \end{minipage}
+\end{figure}
+
+The word counts in dataset drops extremely quickly. We can see that only 10000 words
+occurs more than 100 times. I have tested different sizes of input vector, using simple
+network with two hidden layers of 32 neurons, training for 15 epoch and saving the model that
+had the best loss on validation set. Increasing the size of input vector up to 2000
+significantly improves the results.
+
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.3}{\input{../figures/input_size.pgf}}
+        \caption{Results of training simple neural network classifier on different input sizes.}
+	\end{center}
+\end{figure}
+
+
+\subsection{Feature engeenering}
+I have decided to test different variants of BOW:
+\begin{itemize}
+\item \textbf{binary} - 1 if word is in document 0 otherwise.
+\item \textbf{count} - for each word, number of occurances in document
+\item \textbf{tfidf} - term frequency-inverse document frequency
+\end{itemize}
+I have tested all three variants with both words only and words with POS tag on my final
+neural network model. The best performance was achieved with binary BOWs with POS tags.
+
+% %----------------------------------------------------------------------------------------
+% %	NEURAL NETWORK
+% %----------------------------------------------------------------------------------------
+
+\section{Neural network classifier and hyperparameter tuning}
+I have tested number of different hyperparameters which i describe
+in details below. If not stated otherwise, the default architecture is neural network with three
+hidden layers with sizes 256, 128 and 64, input size of 2000. Trained for 10 epochs. 
+Default loss function is categorical crossentropy, adam optimizer and relu activation function.
+
+\subsection{Optimizers}
+I have tested the popular optimizers: \textbf{sgd}, \textbf{RMSprop} and \textbf{Adam}.
+As seen below, simple sgd performs really poorly compared to other two that use adaptive learning rate.
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.4}{\includegraphics{../figures/optimizers.png}}
+        \caption{Training neural network with different optimizers.}
+	\end{center}
+\end{figure}
+
+\newpage
+
+\subsection{Activation function}
+The activation functions that I have tested are: \textbf{sigmoid}, \textbf{tanh} and \textbf{relu}.
+Again, network learns much faster when using relu activation. This is due to the fact that with
+other two neurons are more prone to saturate.
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.4}{\includegraphics{../figures/activations.png}}
+        \caption{Training neural network with different activation functions.}
+	\end{center}
+\end{figure}
+
+\subsection{Number of layers}
+To test how network behaves with different number of layers, I trained models with layers of size 512.
+As input, I also took a vector of size 512 not to bias time measurments with large matrix multiplications.
+As shown on charts below, accuracy slowly increases with number of layers and then drops. This is probably
+due to overfitting since it's common behaviour with large networks. Time increases linearly since with each
+new leayer I add new matrix multiplication of the same size. 
+
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.39}{\input{../figures/num_layers.pgf}}
+        \caption{Results of training neural network classifier with different number of layers.}
+	\end{center}
+\end{figure}
+
+\newpage
+
+\subsection{Loss function}
+For the loss function I have tested only two values: \textbf{categorical crossentropy} and
+\textbf{mse}. Categorical crossentropy which is a goto loss function when training multiclass
+classification behaves really well. Using mse only slowed training process, as seen below 
+accuracy on training set achieved after one epoch using crossentropy is achieved after four using mse.
+
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.4}{\includegraphics{../figures/loss.png}}
+        \caption{Results of training neural network classifier with different loss functions.}
+	\end{center}
+\end{figure}
+
+
+\subsection{Regularizations}
+Since in all previous experiments it can be clearly seen that models overfit the data rally quickly,
+it is important to test different regularization terms. I have tested: \textbf{l1}, \textbf{l2} and \textbf{dropout}.
+While when using l1 and l2 improvement wasn't that significant, applying dropout (with dropout rate 0.5) helped.
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.4}{\includegraphics{../figures/regularization.png}}
+        \caption{Training neural network with different regularizations.}
+	\end{center}
+\end{figure}
+
+\newpage
+
+\section{Results}
+For each of the previous experiments, as well as for the final model I have collected required statistics:
+\textbf{accuracy}, \textbf{precision}, \textbf{recall} and \textbf{f1 score}. Precision, recall and f1 are
+computed both per class and weighted average 
+(using scikit\_learn function \textit{precision\_recall\_fscore\_support()}). 
+Additionally I computed the confusion matrix. 
+All the metrics are saved in json files.
+
+
+\subsection{Best Model}
+During the previous experiments I have noticed two things. First that having larger input
+significantly improves quality of classification. Second almost every model overfit
+really quickly. As my final model I have decided to build very simple neural network,
+only two hidden layers with 64 and 32 neurons. One dropout layer in between with rate set to 0.25.
+Having small network helps in both cases, it is less likely to overfit the data, and I can
+feed it a large input while still having reasonable training time.
+I used very large input of size 10000. Input BOWs were in binary mode with POS tags.
+Cross entropy loss function was weighted to deal with the unbalanced classes. I used early
+stopping and model was trained after just 4 epochs. 
+
+\begin{figure}[h]	
+	\begin{center}
+		\scalebox{0.2}{\includegraphics{../figures/png.png}}
+        \caption{Neural network model.}
+	\end{center}
+\end{figure}
+
+\newpage
+
+\subsection{Evaluation}
+I have trained model three times and computed the mean and standard deviation of all metrics.
+Results are available as json files in \textit{experiments/best/} for both validation and test set.
+Here I present resoults as tables. Model achieved average accuracy on validation set of \textbf{0.7765} with std \textbf{0.0051}.
+
+\begin{figure}[h]
+	\centering
+	\begin{minipage}{0.45\textwidth}
+		\scalebox{0.7}{\input{./dev_average.tex}}
+        \caption{Average values of precision, recall and fscore for each class on dev.}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+		\scalebox{0.7}{\input{./dev_std.tex}}
+        \caption{Standard diviation of precision, recall and fscore for each class on dev.}
+	\end{minipage}
+\end{figure}
+
+On the test set, model achieved average accuracy \textbf{0.7585} with std \textbf{0.0009}, which is
+slightly worse but that is
+understandable since hyperparameters were tuned for validation set. Nevertheless model is stable,
+since standard deviation is small.
+
+\begin{figure}[h]
+	\centering
+	\begin{minipage}{0.45\textwidth}
+		\scalebox{0.7}{\input{./test_average.tex}}
+        \caption{Average values of precision, recall and fscore for each class on test.}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+		\scalebox{0.7}{\input{./test_std.tex}}
+        \caption{Standard diviation of precision, recall and fscore for each class on test.}
+	\end{minipage}
+\end{figure}
+
+Looking at metrics for individual classes, it can be observed that model has high success rate of
+properly classifying some of them, when the others mostly the ones that had less samples in the dataset are
+difficult. Weighting loss function helped but didn't solve the problem.
+Performance could be probably improved on those classes, by increasing number of samples in
+the dataset.
+
+\section{Conclusion}
+I have implemented flexible framework, that allowed me to test different models for given classification problem.
+I have tested different sets of features and hyperparameters such as input sizes, number of layers, activations, 
+loss functions and optimizers. Finally I have built model that achieves stable 0.75 accuracy on test set.
+\end{document}

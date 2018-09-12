@@ -1,0 +1,25 @@
+{
+    "input_size": 2000,
+    "epochs": 10,
+    "loss": "categorical_crossentropy",
+    "layers": [
+        {
+            "type": "dense",
+            "units": 256,
+            "activation": "relu",
+            "regualrizer": "l1"
+        },
+        {
+            "type": "dense",
+            "units": 128,
+            "activation": "relu",
+            "regualrizer": "l1"
+        },
+        {
+            "type": "dense",
+            "units": 64,
+            "activation": "relu",
+            "regualrizer": "l1"
+        }
+    ]
+}

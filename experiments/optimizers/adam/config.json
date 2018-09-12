@@ -1,0 +1,22 @@
+{
+    "input_size": 2000,
+    "epochs": 10,
+    "optimizer": "adam",
+    "layers": [
+        {
+            "type": "dense",
+            "units": 256,
+            "activation": "relu"
+        },
+        {
+            "type": "dense",
+            "units": 128,
+            "activation": "relu"
+        },
+        {
+            "type": "dense",
+            "units": 64,
+            "activation": "relu"
+        }
+    ]
+}

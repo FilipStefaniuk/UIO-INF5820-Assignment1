@@ -1,0 +1,13 @@
+{
+    "input_size": 15000,
+    "layers": [
+        {
+            "type": "dense",
+            "units": 32
+        },
+        {
+            "type": "dense",
+            "units": 32
+        }
+    ]
+}
