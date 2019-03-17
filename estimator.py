@@ -92,7 +92,7 @@ class Estimator(object):
 
         acc = accuracy_score(y_true, y_pred)
         prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred)
-        avg_prec, avg_rec, avg_f1, _ = precision_recall_fscore_support(y_true, y_pred, average='weighted')
+        avg_prec, avg_rec, avg_f1, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
         C = confusion_matrix(y_true, y_pred)
 
         return {
